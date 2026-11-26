@@ -6,13 +6,6 @@
   <title>Early 2000s Chick Flicks Analysis | Visualización de Datos</title>
 
   <!-- =========================================================
-       FUENTES DE GOOGLE FONTS (Editorial Y2K + Legibilidad)
-       ========================================================= -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-
-  <!-- =========================================================
        LIBRERÍAS DESDE CDN (Tailwind, D3 v7, p5.js, Scrollama, PapaParse)
        ========================================================= -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -43,14 +36,19 @@
     body {
       background-color: var(--bg-cream);
       color: var(--ink-dark);
-      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-family: 'Avenir Light', 'Avenir', 'Helvetica Neue', sans-serif;
       overflow-x: hidden;
       margin: 0;
       padding: 0;
     }
 
-    h1, h2, h3, .font-editorial {
-      font-family: 'Playfair Display', serif;
+    *,
+    h1, h2, h3, h4, h5, h6,
+    p, span, strong, em,
+    button, input, select, option,
+    label, text,
+    .font-editorial {
+      font-family: 'Avenir Light', 'Avenir', 'Helvetica Neue', sans-serif !important;
     }
 
     /* Patrón sutil de cuadrícula estilo cuaderno Y2K */
@@ -139,6 +137,13 @@
       width: 100%;
       min-height: 440px;
       height: auto;
+    }
+
+    .flourish-platform-equal {
+      width: 100%;
+      max-width: 720px;
+      min-height: 360px;
+      margin-inline: auto;
     }
 
     /* Tooltip flotante global (solo visible cuando el mouse está sobre una gráfica) */
@@ -284,12 +289,11 @@
       <!-- Columna visual: Reproductor / CD Y2K interactivo -->
       <div class="lg:col-span-5 flex flex-col items-center justify-center">
         <div class="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center">
-          <div class="cd-disc w-full h-full flex items-center justify-center">
-            <div class="absolute inset-0 flex flex-col items-center justify-between py-6 text-center pointer-events-none">
-              <span class="text-[10px] font-bold tracking-widest uppercase text-[#1E1624]/80">CHICK FLICKS MIX VOL. 1</span>
-              <span class="text-[10px] font-bold tracking-widest uppercase text-[#1E1624]/80">2001 — 2010 • STEREO</span>
-            </div>
-          </div>
+          <img
+            src="assets/img/cd6.png"
+            alt="Disco inspirado en la banda sonora de Mean Girls"
+            class="w-full h-full object-contain"
+          />
         </div>
         <p class="mt-4 text-xs text-center text-gray-500 italic max-w-xs">
           Inspirado en las bandas sonoras y estuches de CD que acompañaron la era dorada de las comedias románticas.
@@ -313,7 +317,7 @@
     </div>
 
     <!-- Pieza 1A: Flourish Placeholder 2 (Jerarquía / Sunburst de Plataformas) -->
-    <div class="bg-white rounded-3xl border-2 border-pink-200 p-5 sm:p-8 shadow-md mb-16">
+    <div class="bg-white rounded-3xl border-2 border-pink-200 p-5 sm:p-8 shadow-md mb-16 max-w-[720px] mx-auto">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h3 class="text-xl font-bold text-[#1E1624]">Distribución jerárquica por proveedor y modalidad</h3>
@@ -323,8 +327,8 @@
       </div>
 
       <!-- BLOQUE FLOURISH PLACEHOLDER 2 (Tal como fue proporcionado) -->
-      <div class="flourish-wrapper">
-        <div class="flourish-embed flourish-hierarchy" data-src="visualisation/28524837"><script src="https://public.flourish.studio/resources/embed.js"></script><noscript><img src="https://public.flourish.studio/visualisation/28524837/thumbnail" width="100%" alt="hierarchy visualization" /></noscript></div><div class="flourish-fallback" data-for="visualisation/28524837"><a href="https://public.flourish.studio/visualisation/28524837/visualisation.json?ref=embed-script">https://public.flourish.studio/visualisation/28524837/visualisation.json?ref=embed-script</a></div>
+      <div class="flourish-wrapper flourish-platform-equal">
+        <div class="flourish-embed flourish-hierarchy" data-src="visualisation/30820971"><script src="https://public.flourish.studio/resources/embed.js"></script><noscript><img src="https://public.flourish.studio/visualisation/30820971/thumbnail" width="100%" alt="hierarchy visualization" /></noscript></div><div class="flourish-fallback" data-for="visualisation/30820971"><a href="https://public.flourish.studio/visualisation/30820971/visualisation.json?ref=embed-script">https://public.flourish.studio/visualisation/30820971/visualisation.json?ref=embed-script</a></div>
       </div>
 
       <p class="text-xs text-gray-400 mt-3 border-t border-gray-100 pt-2">
@@ -460,7 +464,7 @@
 
         <!-- BLOQUE FLOURISH PLACEHOLDER 1 (Tal como fue proporcionado) -->
         <div class="flourish-wrapper">
-          <div class="flourish-embed flourish-scatter" data-src="visualisation/30290353"><script src="https://public.flourish.studio/resources/embed.js"></script><noscript><img src="https://public.flourish.studio/visualisation/30290353/thumbnail" width="100%" alt="scatter visualization" /></noscript></div><div class="flourish-fallback" data-for="visualisation/30290353"><a href="https://public.flourish.studio/visualisation/30290353/visualisation.json?ref=embed-script">https://public.flourish.studio/visualisation/30290353/visualisation.json?ref=embed-script</a></div>
+          <div class="flourish-embed flourish-scatter" data-src="visualisation/30902245"><script src="https://public.flourish.studio/resources/embed.js"></script><noscript><img src="https://public.flourish.studio/visualisation/30902245/thumbnail" width="100%" alt="scatter visualization" /></noscript></div><div class="flourish-fallback" data-for="visualisation/30902245"><a href="https://public.flourish.studio/visualisation/30902245/visualisation.json?ref=embed-script">https://public.flourish.studio/visualisation/30902245/visualisation.json?ref=embed-script</a></div>
         </div>
 
         <p class="text-[11px] text-gray-400 mt-3 pt-2 border-t border-gray-100">
