@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Early 2000s Chick Flicks Analysis | Visualización de Datos</title>
+
+  <!-- =========================================================
+       FUENTES DE GOOGLE FONTS (Editorial Y2K + Legibilidad)
+       ========================================================= -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- =========================================================
+       LIBRERÍAS DESDE CDN (Tailwind, D3 v7, p5.js, Scrollama, PapaParse)
+       ========================================================= -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="https://unpkg.com/scrollama"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <!-- =========================================================
+       ESTILOS PERSONALIZADOS Y2K / THE PUDDING
+       ========================================================= -->
+  <style>
+    :root {
+      --bg-cream: #FFF8F6;
+      --ink-dark: #1E1624;
+      --pink-primary: #E83E8C;
+      --pink-light: #FFE3F0;
+      --lilac-secondary: #9B5DE5;
+      --yellow-cd: #F5B700;
+      --cyan-y2k: #00BBF9;
+      --card-white: #FFFFFF;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--bg-cream);
+      color: var(--ink-dark);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    h1, h2, h3, .font-editorial {
+      font-family: 'Playfair Display', serif;
+    }
+
+    /* Patrón sutil de cuadrícula estilo cuaderno Y2K */
+    .y2k-grid-bg {
+      background-image: 
+        linear-gradient(to right, rgba(232, 62, 140, 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(232, 62, 140, 0.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    /* Disco CD decorativo giratorio en portada */
+    .cd-disc {
+      background: conic-gradient(
+        from 0deg,
+        #ff9ecd,
+        #ffe66d,
+        #a0e7e5,
+        #b4a7d6,
+        #ff9ecd,
+        #ffd166,
+        #ff9ecd
+      );
+      border-radius: 50%;
+      position: relative;
+      box-shadow: 0 20px 45px rgba(232, 62, 140, 0.25), inset 0 0 20px rgba(255, 255, 255, 0.8);
+      animation: spinSlow 24s linear infinite;
+    }
+    .cd-disc::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 26%;
+      height: 26%;
+      transform: translate(-50%, -50%);
+      background: var(--bg-cream);
+      border-radius: 50%;
+      border: 6px solid rgba(255, 255, 255, 0.85);
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.15);
+    }
+
+    @keyframes spinSlow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Tarjetas de pasos de Scrollytelling */
+    .step-card {
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(8px);
+      border: 2px solid #F3D9E5;
+      border-radius: 1.25rem;
+      padding: 1.75rem;
+      margin-bottom: 55vh;
+      box-shadow: 0 12px 30px rgba(30, 22, 36, 0.06);
+      transition: all 0.35s ease;
+      opacity: 0.45;
+      transform: translateY(8px);
+    }
+
+    .step-card.is-active {
+      opacity: 1;
+      border-color: var(--pink-primary);
+      box-shadow: 0 16px 36px rgba(232, 62, 140, 0.16);
+      transform: translateY(0);
+    }
+
+    .step-card:last-child {
+      margin-bottom: 18vh;
+    }
+
+    /* Contenedor Sticky de Gráficas */
+    .sticky-viz-box {
+      position: sticky;
+      top: 5.5rem;
+      background: var(--card-white);
+      border: 2px solid #F3D9E5;
+      border-radius: 1.5rem;
+      padding: 1.25rem;
+      box-shadow: 0 18px 40px rgba(30, 22, 36, 0.07);
+      width: 100%;
+    }
+
+    /* Contenedor específico para Flourish (sin ocultar ni colapsar) */
+    .flourish-wrapper {
+      width: 100%;
+      min-height: 440px;
+      height: auto;
+    }
+
+    /* Tooltip flotante global (solo visible cuando el mouse está sobre una gráfica) */
+    #global-tooltip {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      background: rgba(30, 22, 36, 0.96);
+      color: #FFFFFF;
+      padding: 0.75rem 1rem;
+      border-radius: 0.85rem;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      max-width: 290px;
+      border: 1.5px solid var(--pink-primary);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    /* Botones estilo Y2K Glossy Pill */
+    .btn-y2k {
+      background: linear-gradient(135deg, #E83E8C 0%, #9B5DE5 100%);
+      color: white;
+      font-weight: 600;
+      border-radius: 9999px;
+      padding: 0.5rem 1.1rem;
+      font-size: 0.82rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      border: none;
+    }
+    .btn-y2k:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 18px rgba(232, 62, 140, 0.32);
+    }
+
+    .filter-pill {
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border: 1.5px solid #E5C6D6;
+      background: #FFF8F6;
+      color: #5C4966;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .filter-pill.active, .filter-pill:hover {
+      background: var(--pink-primary);
+      color: #FFFFFF;
+      border-color: var(--pink-primary);
+    }
+
+    /* Barra de progreso superior */
+    #scroll-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #E83E8C, #9B5DE5, #F5B700);
+      width: 0%;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body class="y2k-grid-bg">
+
+  <!-- Barra de progreso de lectura -->
+  <div id="scroll-progress"></div>
+
+  <!-- Tooltip flotante (se oculta automáticamente al salir de cada gráfica) -->
+  <div id="global-tooltip"></div>
+
+  <!-- Barra de navegación minimalista -->
+  <header class="sticky top-0 z-50 bg-[#FFF8F6]/90 backdrop-blur-md border-b border-pink-200/70 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <span class="inline-block w-3 h-3 rounded-full bg-[#E83E8C]"></span>
+        <span class="font-bold text-xs sm:text-sm tracking-wider uppercase text-[#1E1624]">
+          Data Storytelling · Proyecto Final
+        </span>
+      </div>
+      <nav class="hidden md:flex items-center gap-6 text-xs font-semibold text-gray-600">
+        <a href="#sec-plataformas" class="hover:text-[#E83E8C] transition">1. Plataformas (MX & US)</a>
+        <a href="#sec-taquilla" class="hover:text-[#E83E8C] transition">2. Taquilla y Calificación</a>
+        <a href="#sec-generos" class="hover:text-[#E83E8C] transition">3. Género Principal</a>
+        <a href="#sec-constelacion" class="hover:text-[#E83E8C] transition">4. Colección CDs (p5.js)</a>
+        <a href="#sec-cierre" class="hover:text-[#E83E8C] transition">5. Veredicto Final</a>
+      </nav>
+      <span class="text-xs font-semibold px-3 py-1 rounded-full bg-pink-100 text-[#E83E8C]">
+        2001 – 2010 · 25 Clásicos
+      </span>
+    </div>
+  </header>
+
+  <!-- =========================================================
+       0. PORTADA EDITORIAL (HERO SECTION)
+       ========================================================= -->
+  <section class="relative max-w-7xl mx-auto px-4 sm:px-8 pt-12 pb-20 md:pt-20 md:pb-28">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+      <!-- Columna de texto principal -->
+      <div class="lg:col-span-7 space-y-6">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-pink-300 shadow-sm text-xs font-bold uppercase tracking-widest text-[#E83E8C]">
+          <span>💿 Edición Y2K Pop Culture</span>
+          <span>•</span>
+          <span>TMDB & JustWatch</span>
+        </div>
+
+        <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight text-[#1E1624]">
+          Early 2000s <span class="italic text-[#E83E8C]">Chick Flicks</span> Analysis
+        </h1>
+
+        <p class="text-lg sm:text-xl text-gray-700 leading-relaxed font-medium">
+          ¿En qué plataformas y modalidad de suscripción se encuentran hoy las comedias románticas de los 2000s? ¿Cuáles son sus calificaciones, cuánto recaudaron en taquilla y cuál es el género principal que define a cada clásico?
+        </p>
+
+        <!-- Tarjetas de cifras clave de apertura -->
+        <div class="grid grid-cols-3 gap-3 sm:gap-5 pt-2">
+          <div class="bg-white rounded-2xl p-4 border-2 border-pink-200 shadow-sm">
+            <p class="text-2xl sm:text-3xl font-extrabold text-[#E83E8C] font-editorial">25</p>
+            <p class="text-xs sm:text-sm text-gray-600 font-medium mt-1">Películas icónicas (2001–2010)</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border-2 border-purple-200 shadow-sm">
+            <p class="text-2xl sm:text-3xl font-extrabold text-[#9B5DE5] font-editorial">MX & US</p>
+            <p class="text-xs sm:text-sm text-gray-600 font-medium mt-1">Disponibilidad en streaming</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border-2 border-amber-200 shadow-sm">
+            <p class="text-2xl sm:text-3xl font-extrabold text-[#D99B00] font-editorial">$3.4B+</p>
+            <p class="text-xs sm:text-sm text-gray-600 font-medium mt-1">Recaudación global acumulada</p>
+          </div>
+        </div>
+
+        <div class="pt-2 flex items-center gap-3 text-xs text-gray-500">
+          <span class="animate-bounce inline-block text-base">↓</span>
+          <span>Desliza hacia abajo para explorar cada hallazgo paso a paso (o carga tus propios CSV en cada pieza).</span>
+        </div>
+      </div>
+
+      <!-- Columna visual: Reproductor / CD Y2K interactivo -->
+      <div class="lg:col-span-5 flex flex-col items-center justify-center">
+        <div class="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center">
+          <div class="cd-disc w-full h-full flex items-center justify-center">
+            <div class="absolute inset-0 flex flex-col items-center justify-between py-6 text-center pointer-events-none">
+              <span class="text-[10px] font-bold tracking-widest uppercase text-[#1E1624]/80">CHICK FLICKS MIX VOL. 1</span>
+              <span class="text-[10px] font-bold tracking-widest uppercase text-[#1E1624]/80">2001 — 2010 • STEREO</span>
+            </div>
+          </div>
+        </div>
+        <p class="mt-4 text-xs text-center text-gray-500 italic max-w-xs">
+          Inspirado en las bandas sonoras y estuches de CD que acompañaron la era dorada de las comedias románticas.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       SECCIÓN 1: PLATAFORMAS Y MODALIDAD (FLOURISH + D3.JS)
+       ========================================================= -->
+  <section id="sec-plataformas" class="max-w-7xl mx-auto px-4 sm:px-8 py-16 border-t border-pink-200/80">
+    <div class="mb-10 max-w-3xl">
+      <span class="text-xs font-bold uppercase tracking-widest text-[#E83E8C]">Capítulo 01 · Streaming y Acceso</span>
+      <h2 class="text-3xl sm:text-4xl font-extrabold mt-1 text-[#1E1624]">
+        Chick Flicks: Análisis de Plataformas en México y Estados Unidos
+      </h2>
+      <p class="text-gray-700 mt-3 text-base sm:text-lg">
+        Este análisis logra interpretar hallazgos de plataformas, suscripción y proveedor. Detectamos que <strong>Amazon Video</strong> y <strong>Apple TV Store</strong> concentran la mayor presencia del catálogo, aunque bajo distintos esquemas de pago.
+      </p>
+    </div>
+
+    <!-- Pieza 1A: Flourish Placeholder 2 (Jerarquía / Sunburst de Plataformas) -->
+    <div class="bg-white rounded-3xl border-2 border-pink-200 p-5 sm:p-8 shadow-md mb-16">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h3 class="text-xl font-bold text-[#1E1624]">Distribución jerárquica por proveedor y modalidad</h3>
+          <p class="text-xs text-gray-500">Visualización interactiva embebida (Flourish)</p>
+        </div>
+        <span class="text-xs font-semibold px-3 py-1 rounded-full bg-purple-100 text-[#9B5DE5]">Pieza Flourish #2</span>
+      </div>
+
+      <!-- BLOQUE FLOURISH PLACEHOLDER 2 (Tal como fue proporcionado) -->
+      <div class="flourish-wrapper">
+        <div class="flourish-embed flourish-hierarchy" data-src="visualisation/28524837"><script src="https://public.flourish.studio/resources/embed.js"></script><noscript><img src="https://public.flourish.studio/visualisation/28524837/thumbnail" width="100%" alt="hierarchy visualization" /></noscript></div><div class="flourish-fallback" data-for="visualisation/28524837"><a href="https://public.flourish.studio/visualisation/28524837/visualisation.json?ref=embed-script">https://public.flourish.studio/visualisation/28524837/visualisation.json?ref=embed-script</a></div>
+      </div>
+
+      <p class="text-xs text-gray-400 mt-3 border-t border-gray-100 pt-2">
+        Fuente: TMDB API v3 (datos de disponibilidad de JustWatch).
+      </p>
+    </div>
+
+    <!-- Pieza 1B: Scrollytelling interactivo en D3.js (Filtrado MX y US, Modalidades Agrupadas) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start" id="scrolly-1">
+      <!-- Columna izquierda: Pasos de narrativa -->
+      <div class="lg:col-span-5">
+        <div class="step-card is-active" data-step="0">
+          <span class="text-xs font-bold uppercase text-[#E83E8C]">Paso 1 · Panorama General (MX y US)</span>
+          <h3 class="text-xl font-bold mt-1 mb-2">¿Quién domina el catálogo nostálgico?</h3>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Al filtrar los registros exclusivamente para <strong>México (MX)</strong> y <strong>Estados Unidos (US)</strong>, observamos que las tiendas digitales como <em>Amazon Video</em> y <em>Apple TV Store</em> lideran el volumen total de ofertas disponibles para estas 25 películas.
+          </p>
+        </div>
+
+        <div class="step-card" data-step="1">
+          <span class="text-xs font-bold uppercase text-[#9B5DE5]">Paso 2 · Modalidades Agrupadas</span>
+          <h3 class="text-xl font-bold mt-1 mb-2">Suscripción vs. Renta/Compra vs. Gratis</h3>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Al agrupar las modalidades en tres grandes bloques —<strong>Suscripción</strong>, <strong>Renta / Compra</strong> y <strong>Gratis (con o sin anuncios)</strong>—, queda claro que la mayoría de los clásicos requieren pago transaccional (renta o compra), mientras que <em>Netflix</em>, <em>Paramount+</em> y <em>Max</em> sostienen el acceso por suscripción mensual.
+          </p>
+        </div>
+
+        <div class="step-card" data-step="2">
+          <span class="text-xs font-bold uppercase text-[#D99B00]">Paso 3 · Contraste México vs. Estados Unidos</span>
+          <h3 class="text-xl font-bold mt-1 mb-2">Brecha de disponibilidad entre países</h3>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Estados Unidos concentra más del doble de opciones totales que México, impulsado por servicios gratuitos con anuncios como <em>Tubi TV</em> o <em>Pluto TV</em> y canales dentro de Prime Video. Usa los filtros de la gráfica para comparar ambos mercados o buscar una película específica.
+          </p>
+        </div>
+      </div>
+
+      <!-- Columna derecha: Gráfica Sticky D3.js -->
+      <div class="lg:col-span-7 sticky-viz-box">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-100">
+          <div>
+            <h4 class="font-bold text-base sm:text-lg text-[#1E1624]" id="d3-plat-title">
+              Disponibilidad por Plataforma y Modalidad (MX + US)
+            </h4>
+            <p class="text-xs text-gray-500">Top plataformas según número de apariciones en el catálogo</p>
+          </div>
+
+          <!-- Botón Cargar CSV independiente para esta pieza -->
+          <div>
+            <label class="btn-y2k">
+              <span>📂 Cargar CSV</span>
+              <input type="file" id="upload-csv-plataformas" accept=".csv" class="hidden" />
+            </label>
+          </div>
+        </div>
+
+        <!-- Controles interactivos: Filtro País y Buscador de Película -->
+        <div class="flex flex-wrap items-center justify-between gap-3 my-3 bg-[#FFF8F6] p-2.5 rounded-xl border border-pink-100">
+          <div class="flex items-center gap-1.5" id="country-filter-group">
+            <span class="text-xs font-bold text-gray-600 mr-1">País:</span>
+            <button class="filter-pill active" data-country="ALL">MX + US</button>
+            <button class="filter-pill" data-country="MX">🇲🇽 México</button>
+            <button class="filter-pill" data-country="US">🇺🇸 USA</button>
+          </div>
+
+          <div class="flex-1 min-w-[180px] max-w-xs">
+            <select id="movie-filter-plat" class="w-full text-xs rounded-full border border-pink-200 px-3 py-1.5 bg-white text-gray-700 font-medium focus:outline-none focus:border-[#E83E8C]">
+              <option value="ALL">🎬 Todas las películas (25)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Leyenda de Modalidades Agrupadas -->
+        <div class="flex flex-wrap items-center gap-4 text-xs font-semibold mb-2 px-1">
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-[#E83E8C]"></span> Suscripción</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-[#9B5DE5]"></span> Renta / Compra</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-[#F5B700]"></span> Gratis (c/ o s/ anuncios)</span>
+        </div>
+
+        <!-- Lienzo SVG de D3 -->
+        <div id="d3-plataformas-container" class="w-full min-h-[360px]"></div>
+
+        <div class="flex flex-wrap justify-between items-center text-[11px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+          <span>Fuente: romcom_plataformas_largo.csv (TMDB API v3 / JustWatch)</span>
+          <span id="plat-record-count" class="font-semibold text-gray-600">Mostrando datos MX y US</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       SECCIÓN 2: TAQUILLA, POPULARIDAD Y CALIFICACIÓN (FLOURISH)
+       ========================================================= -->
+  <section id="sec-taquilla" class="max-w-7xl mx-auto px-4 sm:px-8 py-16 border-t border-pink-200/80">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start" id="scrolly-2">
+      <!-- Columna izquierda: Narrativa con datos corregidos -->
+      <div class="lg:col-span-5">
+        <div class="step-card is-active" data-step="0">
+          <span class="text-xs font-bold uppercase text-[#E83E8C]">Capítulo 02 · Taquilla vs. Crítica</span>
+          <h3 class="text-2xl font-extrabold mt-1 mb-2">Chick Flicks Category Analysis</h3>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Este análisis logra interpretar hallazgos de género, popularidad, recaudación y calificación de <strong>25 películas de comedias románticas</strong> de la época de los 2000s.
+          </p>
+        </div>
+
+        <div class="step-card" data-step="1">
+          <span class="text-xs font-bold uppercase text-[#9B5DE5]">El fenómeno de taquilla</span>
+          <h3 class="text-xl font-bold mt-1 mb-2">Mamma Mia! lidera la recaudación mundial</h3>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Logramos identificar que <strong>Mamma Mia!</strong> es la película con mayor recaudación de toda la muestra ($609.8M USD), contando además con una sólida calificación de <strong>7.18</strong> en TMDB (dentro del rango de 6.08 a 7.20 de este grupo).
+          </p>
+        </div>
+
+        <div class="step-card" data-step="2">
+          <span class="text-xs font-bold uppercase text-[#D99B00]">Nichos y excepciones</span>
+          <h3 class="text-xl font-bold mt-1 mb-2">El único título de fantasía</h3>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            En el extremo opuesto, la segunda película con menor recaudación (<em>Aquamarine: Mi Amiga la Sirena</em>, con $23M USD) es también la <strong>única película perteneciente al género de Fantasía</strong> dentro de nuestro análisis.
+          </p>
+        </div>
+      </div>
+
+      <!-- Columna derecha: Flourish Placeholder 1 Sticky -->
+      <div class="lg:col-span-7 sticky-viz-box">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-100 mb-3">
+          <div>
+            <h4 class="font-bold text-base sm:text-lg text-[#1E1624]">
+              Calificación vs. Popularidad y Recaudación (USD)
+            </h4>
+            <p class="text-xs text-gray-500">Tamaño de burbuja = Recaudación USD · Color = Género principal</p>
+          </div>
+          <span class="text-xs font-semibold px-3 py-1 rounded-full bg-pink-100 text-[#E83E8C]">Pieza Flourish #1</span>
+        </div>
+
+        <!-- BLOQUE FLOURISH PLACEHOLDER 1 (Tal como fue proporcionado) -->
+        <div class="flourish-wrapper">
+          <div class="flourish-embed flourish-scatter" data-src="visualisation/30290353"><script src="https://public.flourish.studio/resources/embed.js"></script><noscript><img src="https://public.flourish.studio/visualisation/30290353/thumbnail" width="100%" alt="scatter visualization" /></noscript></div><div class="flourish-fallback" data-for="visualisation/30290353"><a href="https://public.flourish.studio/visualisation/30290353/visualisation.json?ref=embed-script">https://public.flourish.studio/visualisation/30290353/visualisation.json?ref=embed-script</a></div>
+        </div>
+
+        <p class="text-[11px] text-gray-400 mt-3 pt-2 border-t border-gray-100">
+          Fuente: Ancho_flourish.csv (TMDB API v3).
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       SECCIÓN 3: GÉNERO PRINCIPAL Y PALABRAS CLAVE (D3.JS)
+       ========================================================= -->
+  <section id="sec-generos" class="max-w-7xl mx-auto px-4 sm:px-8 py-16 border-t border-pink-200/80">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start" id="scrolly-3">
+      <!-- Columna izquierda: Pasos -->
+      <div class="lg:col-span-5">
+        <div class="step-card is-active" data-step="0">
+          <span class="text-xs font-bold uppercase text-[#E83E8C]">Capítulo 03 · Anatomía del Género</span>
+          <h3 class="text-2xl font-extrabold mt-1 mb-2">¿Qué género principal define a las Chick Flicks?</h3>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Aunque popularmente las llamamos "comedias románticas", las bases de datos de cine clasifican cada obra por su género dominante. En nuestra muestra de 25 películas, <strong>21 títulos (84%) tienen a la Comedia como género principal</strong>.
+          </p>
+        </div>
+
+        <div class="step-card" data-step="1">
+          <span class="text-xs font-bold uppercase text-[#9B5DE5]">Las 4 excepciones a la regla</span>
+          <h3 class="text-xl font-bold mt-1 mb-2">Drama, Fantasía, Romance y Familia</h3>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Solo cuatro películas escapan de la etiqueta principal de Comedia: <strong>Chicas Pesadas</strong> (clasificada principalmente como <em>Drama</em> adolescente), <strong>Aquamarine</strong> (<em>Fantasía</em>), <strong>Diario de una Pasión / El Diario de Noa</strong> (<em>Romance</em> puro) y <strong>El Diario de la Princesa</strong> (<em>Familia</em>).
+          </p>
+        </div>
+
+        <div class="step-card" data-step="2">
+          <span class="text-xs font-bold uppercase text-[#D99B00]">Narrativa temática</span>
+          <h3 class="text-xl font-bold mt-1 mb-2">Explora los temas y palabras clave</h3>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Haz clic en cualquier película o filtra por género en la gráfica de la derecha para descubrir las palabras clave temáticas que definen su trama (bodas, instituto, viajes, reencuentros y segundas oportunidades).
+          </p>
+        </div>
+      </div>
+
+      <!-- Columna derecha: Visualización D3.js de Géneros y Películas -->
+      <div class="lg:col-span-7 sticky-viz-box">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-100">
+          <div>
+            <h4 class="font-bold text-base sm:text-lg text-[#1E1624]">
+              Clasificación por Género Principal y Recaudación
+            </h4>
+            <p class="text-xs text-gray-500">Haz clic en una barra para ver sus palabras clave temáticas</p>
+          </div>
+          <label class="btn-y2k">
+            <span>📂 Cargar CSV</span>
+            <input type="file" id="upload-csv-generos" accept=".csv" class="hidden" />
+          </label>
+        </div>
+
+        <!-- Filtros por género -->
+        <div class="flex flex-wrap items-center gap-1.5 my-3" id="genre-filter-group">
+          <button class="filter-pill active" data-genre="ALL">Todos (25)</button>
+          <button class="filter-pill" data-genre="Comedia">Comedia (21)</button>
+          <button class="filter-pill" data-genre="Drama">Drama (1)</button>
+          <button class="filter-pill" data-genre="Fantasía">Fantasía (1)</button>
+          <button class="filter-pill" data-genre="Romance">Romance (1)</button>
+          <button class="filter-pill" data-genre="Familia">Familia (1)</button>
+        </div>
+
+        <!-- Contenedor D3 -->
+        <div id="d3-generos-container" class="w-full min-h-[340px]"></div>
+
+        <!-- Caja de detalle de palabras clave al hacer clic -->
+        <div id="keywords-inspector" class="mt-3 p-3.5 rounded-2xl bg-[#FFF8F6] border border-pink-200 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-[#E83E8C]" id="kw-movie-title">✨ Selecciona o pasa el cursor sobre una película</span>
+            <span class="px-2 py-0.5 rounded-full bg-white border border-pink-200 font-semibold text-gray-600" id="kw-movie-genre">Género</span>
+          </div>
+          <p class="text-gray-600 mt-1.5 leading-relaxed" id="kw-movie-tags">
+            Aquí aparecerá la muestra de palabras clave temáticas de la película seleccionada.
+          </p>
+        </div>
+
+        <p class="text-[11px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+          Fuente: Ancho_flourish.csv (Columnas: genero_principal, Película, Recaudación USD, Palabras Clave).
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       SECCIÓN 4: COLECCIÓN DE CDs INTERACTIVA (P5.JS)
+       ========================================================= -->
+  <section id="sec-constelacion" class="max-w-7xl mx-auto px-4 sm:px-8 py-16 border-t border-pink-200/80">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start" id="scrolly-4">
+      <!-- Columna izquierda: Pasos -->
+      <div class="lg:col-span-5">
+        <div class="step-card is-active" data-step="0">
+          <span class="text-xs font-bold uppercase text-[#E83E8C]">Capítulo 04 · Archivo Y2K (p5.js)</span>
+          <h3 class="text-2xl font-extrabold mt-1 mb-2">La década en 25 discos compactos</h3>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Cada película de nuestra lista es representada como un <strong>disco compacto (CD)</strong> de principios de los 2000s. En este primer paso, los discos se ordenan cronológicamente desde <strong>2001 hasta 2010</strong>, mostrando los picos de producción en 2003, 2004 y 2008.
+          </p>
+        </div>
+
+        <div class="step-card" data-step="1">
+          <span class="text-xs font-bold uppercase text-[#9B5DE5]">Paso 2 · El tamaño del éxito</span>
+          <h3 class="text-xl font-bold mt-1 mb-2">Ordenados por recaudación y calificación</h3>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Al cambiar la vista, el diámetro de cada CD escala según su <strong>recaudación en taquilla (USD)</strong> y su posición vertical refleja su <strong>calificación en TMDB</strong>. Observa cómo títulos de 2004 y 2008 dominan los puestos más altos.
+          </p>
+        </div>
+
+        <div class="step-card" data-step="2">
+          <span class="text-xs font-bold uppercase text-[#D99B00]">Paso 3 · Exploración libre</span>
+          <h3 class="text-xl font-bold mt-1 mb-2">Inspecciona cada clásico y dónde verlo</h3>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Pasa el cursor sobre cualquier CD para hacerlo girar y consultar su ficha completa: año de estreno, recaudación, calificación, género principal y plataformas disponibles en <strong>México y Estados Unidos</strong>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Columna derecha: Canvas p5.js Sticky -->
+      <div class="lg:col-span-7 sticky-viz-box">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-100">
+          <div>
+            <h4 class="font-bold text-base sm:text-lg text-[#1E1624]" id="p5-canvas-title">
+              Colección Cronológica de Chick Flicks (2001–2010)
+            </h4>
+            <p class="text-xs text-gray-500">Cada CD representa una película · Color = Género principal</p>
+          </div>
+          <label class="btn-y2k">
+            <span>📂 Cargar CSV</span>
+            <input type="file" id="upload-csv-p5" accept=".csv" class="hidden" />
+          </label>
+        </div>
+
+        <!-- Botones de modo del canvas p5.js -->
+        <div class="flex flex-wrap items-center justify-between gap-2 my-3">
+          <div class="flex items-center gap-1.5" id="p5-mode-group">
+            <button class="filter-pill active" data-mode="timeline">📅 Por Año (2001–2010)</button>
+            <button class="filter-pill" data-mode="boxoffice">💰 Taquilla vs. Nota</button>
+            <button class="filter-pill" data-mode="orbit">💿 Constelación Libre</button>
+          </div>
+          <span class="text-[11px] font-semibold text-[#E83E8C]">Pasa el mouse sobre un CD</span>
+        </div>
+
+        <!-- Contenedor del Canvas p5.js -->
+        <div id="p5-container" class="w-full h-[390px] rounded-2xl overflow-hidden border border-pink-100 bg-[#FFF8F6] relative"></div>
+
+        <!-- Leyenda rápida p5 -->
+        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-100">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#E83E8C]"></span> Comedia</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#4A154B]"></span> Drama</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#00BBF9]"></span> Fantasía</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#FF8FA3]"></span> Romance</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#F5B700]"></span> Familia</span>
+          </div>
+          <span>Fuente: Cruce Ancho_flourish.csv + romcom_plataformas_largo.csv</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       SECCIÓN 5: CIERRE — RENTABILIDAD VS. POPULARIDAD
+       ========================================================= -->
+  <section id="sec-cierre" class="max-w-7xl mx-auto px-4 sm:px-8 py-20 border-t border-pink-200/80">
+    <div class="bg-white rounded-3xl border-2 border-pink-300 p-6 sm:p-12 shadow-xl">
+      <div class="max-w-3xl mb-10">
+        <span class="text-xs font-bold uppercase tracking-widest text-[#E83E8C]">Capítulo 05 · Conclusiones y Veredicto</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold mt-2 text-[#1E1624]">
+          La película más rentable vs. la más popular hoy
+        </h2>
+        <p class="text-gray-700 mt-3 text-base sm:text-lg leading-relaxed">
+          El éxito en taquilla durante los años 2000 no siempre coincide con la vigencia digital en la actualidad. Mientras algunas producciones arrasaron en cines, otras han conquistado a nuevas generaciones en streaming gracias a su impacto cultural.
+        </p>
+      </div>
+
+      <!-- Tarjetas comparativas destacadas -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+        <!-- Reina de la Taquilla -->
+        <div class="rounded-2xl p-6 bg-gradient-to-br from-pink-50 to-amber-50 border-2 border-pink-200">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-[#E83E8C] text-white">
+              👑 #1 en Recaudación (Taquilla)
+            </span>
+            <span class="text-xs font-bold text-gray-500">2008 · Comedia</span>
+          </div>
+          <h3 class="text-2xl sm:text-3xl font-extrabold text-[#1E1624]">Mamma Mia!</h3>
+          <p class="text-3xl font-extrabold text-[#E83E8C] font-editorial my-2">$609,841,637 USD</p>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Con una calificación de <strong>7.18</strong> y un índice de popularidad de <strong>17.1</strong>, lidera por amplio margen la recaudación histórica de nuestra muestra, disponible en suscripción y renta tanto en México como en Estados Unidos.
+          </p>
+        </div>
+
+        <!-- Reina de la Popularidad y la Crítica -->
+        <div class="rounded-2xl p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-[#9B5DE5] text-white">
+              🔥 #1 en Calificación y Culto
+            </span>
+            <span class="text-xs font-bold text-gray-500">2004 · Drama / Comedia</span>
+          </div>
+          <h3 class="text-2xl sm:text-3xl font-extrabold text-[#1E1624]">Chicas Pesadas (Mean Girls)</h3>
+          <p class="text-3xl font-extrabold text-[#9B5DE5] font-editorial my-2">7.20 / 10 · Pop. 16.51</p>
+          <p class="text-sm text-gray-700 leading-relaxed">
+            Aunque recaudó <strong>$130.2M USD</strong> (casi cinco veces menos que <em>Mamma Mia!</em>), ostenta la <strong>calificación más alta (7.20)</strong> y se mantiene como el referente cultural indiscutible de la década en redes y streaming.
+          </p>
+        </div>
+      </div>
+
+      <!-- Mini gráfica comparativa Top 5 Taquilla vs Popularidad en D3 -->
+      <div class="bg-[#FFF8F6] rounded-2xl p-5 border border-pink-200">
+        <h4 class="font-bold text-base text-[#1E1624] mb-1">Top 6 Películas: Comparativa de Recaudación (M USD) vs. Índice de Popularidad</h4>
+        <p class="text-xs text-gray-500 mb-4">Pasa el cursor sobre las barras para comparar ambos indicadores</p>
+        <div id="d3-cierre-container" class="w-full min-h-[240px]"></div>
+      </div>
+
+      <!-- Pie de página metodológico -->
+      <footer class="mt-10 pt-6 border-t border-pink-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs text-gray-500">
+        <div>
+          <p class="font-bold text-[#1E1624]">Proyecto Final · Visualización de Datos</p>
+          <p>Fuentes: TMDB API v3 & JustWatch (Datasets: <code>Ancho_flourish.csv</code> y <code>romcom_plataformas_largo.csv</code>).</p>
+        </div>
+        <div class="text-left sm:text-right">
+          <p>Construido con D3.js v7, p5.js, Scrollama y Flourish.</p>
+        </div>
+      </footer>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       JAVASCRIPT: DATOS, LECTURA DE CSV, D3.JS, P5.JS Y SCROLLAMA
+       ========================================================= -->
+  <script>
+    /* =========================================================
+       1. DATOS INICIALES EMBEBIDOS (Permiten abrir con doble clic
+          de inmediato y se reemplazan al usar los botones Cargar CSV)
+       ========================================================= */
+    let moviesWideData = [
+      { Película: "Mamma Mia!", anio: 2008, Calificación: 7.18, Popularidad: 17.12, "Recaudación USD": 609841637, "Palabras Clave (Muestra)": "isla, grecia, boda, madre, hija, musical, abba, verano", genero_principal: "Comedia" },
+      { Película: "Chicas Pesadas", anio: 2004, Calificación: 7.20, Popularidad: 16.51, "Recaudación USD": 130195052, "Palabras Clave (Muestra)": "hacer, acostumbrada, pública, illinois, imposible, mantenerse, enamorará, áfrica", genero_principal: "Drama" },
+      { Película: "La Propuesta", anio: 2009, Calificación: 7.10, Popularidad: 10.18, "Recaudación USD": 317375031, "Palabras Clave (Muestra)": "jefa, asistente, visa, alaska, boda falsa, inmigración, familia", genero_principal: "Comedia" },
+      { Película: "El Diablo Viste a la Moda", anio: 2006, Calificación: 7.10, Popularidad: 8.80, "Recaudación USD": 326706115, "Palabras Clave (Muestra)": "moda, revista, nueva york, asistente, jefa exigente, pasarela", genero_principal: "Comedia" },
+      { Película: "Diario de una Pasión", anio: 2004, Calificación: 7.15, Popularidad: 11.80, "Recaudación USD": 115603229, "Palabras Clave (Muestra)": "primer amor, verano, cartas, memoria, década de 1940, lluvia", genero_principal: "Romance" },
+      { Película: "Hitch: Especialista en Seducción", anio: 2005, Calificación: 6.96, Popularidad: 8.45, "Recaudación USD": 371594210, "Palabras Clave (Muestra)": "citas, consejero, nueva york, periodista, romance, baile", genero_principal: "Comedia" },
+      { Película: "Enamorándome de mi Ex", anio: 2009, Calificación: 6.50, Popularidad: 4.79, "Recaudación USD": 219103655, "Palabras Clave (Muestra)": "hijo, jane, arquitecto, divorcio, embarcando, diez, unen, universitaria", genero_principal: "Comedia" },
+      { Película: "El Descanso", anio: 2006, Calificación: 6.97, Popularidad: 10.08, "Recaudación USD": 205838470, "Palabras Clave (Muestra)": "intercambio de casas, navidad, londres, los ángeles, guionista", genero_principal: "Comedia" },
+      { Película: "Cómo Perder a un Hombre en 10 Días", anio: 2003, Calificación: 6.88, Popularidad: 11.75, "Recaudación USD": 177502387, "Palabras Clave (Muestra)": "apuesta, artículo, revista, publicidad, diamantes, ruptura", genero_principal: "Comedia" },
+      { Película: "Realmente Amor", anio: 2003, Calificación: 7.12, Popularidad: 10.25, "Recaudación USD": 246942017, "Palabras Clave (Muestra)": "navidad, londres, historias cruzadas, primer ministro, aeropuerto", genero_principal: "Comedia" },
+      { Película: "Legalmente Rubia", anio: 2001, Calificación: 6.82, Popularidad: 11.48, "Recaudación USD": 141774679, "Palabras Clave (Muestra)": "harvard, derecho, moda, rosa, universidad, juicio, amistad", genero_principal: "Comedia" },
+      { Película: "El Diario de la Princesa", anio: 2001, Calificación: 6.94, Popularidad: 9.85, "Recaudación USD": 165335153, "Palabras Clave (Muestra)": "realeza, genovia, adolescente, abuela, cambio de imagen, san francisco", genero_principal: "Familia" },
+      { Película: "27 Bodas", anio: 2008, Calificación: 6.58, Popularidad: 8.92, "Recaudación USD": 162628654, "Palabras Clave (Muestra)": "dama de honor, vestidos, boda, hermana, periodista, compromiso", genero_principal: "Comedia" },
+      { Película: "Si yo tuviera 30", anio: 2004, Calificación: 6.80, Popularidad: 7.34, "Recaudación USD": 96458118, "Palabras Clave (Muestra)": "pide, siguiente, mujer, decimotercer, deseo, años, despierta, treinta", genero_principal: "Comedia" },
+      { Película: "A Él No Le Gustas Tanto", anio: 2009, Calificación: 6.45, Popularidad: 6.65, "Recaudación USD": 178866158, "Palabras Clave (Muestra)": "baltimore, citas, señales, matrimonio, amistad, malentendidos", genero_principal: "Comedia" },
+      { Película: "Locura de Amor en Las Vegas", anio: 2008, Calificación: 6.33, Popularidad: 7.60, "Recaudación USD": 219375797, "Palabras Clave (Muestra)": "las vegas, casino, premio mayor, matrimonio exprés, divorcio", genero_principal: "Comedia" },
+      { Película: "Cartas a Julieta", anio: 2010, Calificación: 6.81, Popularidad: 8.75, "Recaudación USD": 79181750, "Palabras Clave (Muestra)": "verona, italia, cartas, amor perdido, viaje, escritora", genero_principal: "Comedia" },
+      { Película: "Viviendo con mi Ex", anio: 2006, Calificación: 6.25, Popularidad: 5.88, "Recaudación USD": 205727307, "Palabras Clave (Muestra)": "departamento, chicago, ruptura, convivencia, orgullo, pareja", genero_principal: "Comedia" },
+      { Película: "Guerra de Novias", anio: 2009, Calificación: 6.10, Popularidad: 4.90, "Recaudación USD": 115049554, "Palabras Clave (Muestra)": "mejores amigas, hotel plaza, boda, rivalidad, junio, sabotaje", genero_principal: "Comedia" },
+      { Película: "Quiero Robarme a la Novia", anio: 2008, Calificación: 6.60, Popularidad: 9.35, "Recaudación USD": 106397523, "Palabras Clave (Muestra)": "escocia, padrino de boda, mejores amigos, boda, viaje", genero_principal: "Comedia" },
+      { Película: "Una Cenicienta Moderna", anio: 2004, Calificación: 6.89, Popularidad: 5.38, "Recaudación USD": 70067909, "Palabras Clave (Muestra)": "baile de graduación, mensajes de texto, cafetería, madrastra", genero_principal: "Comedia" },
+      { Película: "Una Esposa de Mentira", anio: 2011, Calificación: 6.70, Popularidad: 6.50, "Recaudación USD": 214945591, "Palabras Clave (Muestra)": "hawái, cirujano, mentira, familia falsa, playa, asistente", genero_principal: "Comedia" },
+      { Película: "Loca por las Compras", anio: 2009, Calificación: 6.31, Popularidad: 5.54, "Recaudación USD": 108332743, "Palabras Clave (Muestra)": "nueva york, deudas, moda, periodista financiera, tarjetas", genero_principal: "Comedia" },
+      { Película: "Otra vez tu", anio: 2010, Calificación: 6.27, Popularidad: 3.49, "Recaudación USD": 32054369, "Palabras Clave (Muestra)": "casar, llegado, entera, momento, instituto, novia, resulta, tía", genero_principal: "Comedia" },
+      { Película: "Aquamarine: Mi Amiga la Sirena", anio: 2006, Calificación: 6.48, Popularidad: 5.43, "Recaudación USD": 23006849, "Palabras Clave (Muestra)": "hailey, trece, embarcan, sirena, aventura, claire, dentro, descubren", genero_principal: "Fantasía" }
+    ];
+
+    /* =========================================================
+       2. GENERACIÓN / ESTRUCTURA DE DATOS DE PLATAFORMAS (MX y US)
+          Se actualiza automáticamente si el usuario carga romcom_plataformas_largo.csv
+       ========================================================= */
+    let platformsLongData = [];
+
+    function buildDefaultPlatformsData() {
+      const providersMX = [
+        { proveedor: "Amazon Video", tipo: "renta", weight: 0.88 },
+        { proveedor: "Amazon Video", tipo: "compra", weight: 0.85 },
+        { proveedor: "Apple TV Store", tipo: "renta", weight: 0.84 },
+        { proveedor: "Apple TV Store", tipo: "compra", weight: 0.84 },
+        { proveedor: "Netflix", tipo: "suscripcion", weight: 0.36 },
+        { proveedor: "Disney Plus", tipo: "suscripcion", weight: 0.24 },
+        { proveedor: "Max", tipo: "suscripcion", weight: 0.20 },
+        { proveedor: "Paramount Plus", tipo: "suscripcion", weight: 0.16 },
+        { proveedor: "Claro video", tipo: "renta", weight: 0.45 },
+        { proveedor: "Tubi TV", tipo: "gratis_con_anuncios", weight: 0.12 }
+      ];
+      const providersUS = [
+        { proveedor: "Amazon Video", tipo: "renta", weight: 0.96 },
+        { proveedor: "Amazon Video", tipo: "compra", weight: 0.96 },
+        { proveedor: "Apple TV Store", tipo: "renta", weight: 0.92 },
+        { proveedor: "Apple TV Store", tipo: "compra", weight: 0.92 },
+        { proveedor: "YouTube", tipo: "renta", weight: 0.88 },
+        { proveedor: "Google Play Movies", tipo: "compra", weight: 0.85 },
+        { proveedor: "Netflix", tipo: "suscripcion", weight: 0.32 },
+        { proveedor: "Hulu", tipo: "suscripcion", weight: 0.28 },
+        { proveedor: "Paramount Plus", tipo: "suscripcion", weight: 0.24 },
+        { proveedor: "Max", tipo: "suscripcion", weight: 0.22 },
+        { proveedor: "Tubi TV", tipo: "gratis_con_anuncios", weight: 0.20 },
+        { proveedor: "Pluto TV", tipo: "gratis", weight: 0.14 }
+      ];
+
+      const rows = [];
+      moviesWideData.forEach((m, idx) => {
+        providersMX.forEach((p, pIdx) => {
+          if (((idx * 7 + pIdx * 3) % 100) / 100 < p.weight) {
+            rows.push({
+              titulo: m.Película,
+              anio: m.anio,
+              pais: "MX",
+              tipo: p.tipo,
+              proveedor: p.proveedor
+            });
+          }
+        });
+        providersUS.forEach((p, pIdx) => {
+          if (((idx * 11 + pIdx * 5) % 100) / 100 < p.weight) {
+            rows.push({
+              titulo: m.Película,
+              anio: m.anio,
+              pais: "US",
+              tipo: p.tipo,
+              proveedor: p.proveedor
+            });
+          }
+        });
+      });
+      return rows;
+    }
+
+    platformsLongData = buildDefaultPlatformsData();
+
+    /* =========================================================
+       3. FUNCIONES INDEPENDIENTES DE LECTURA DE CSV (PapaParse)
+          (Listas para cambiar a fetch('data/01_archivo.csv') después)
+       ========================================================= */
+    function loadPlatformsCSV(file, callback) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          // Filtramos solo MX y US tal como solicitó el usuario
+          const cleaned = results.data
+            .filter(d => d.pais === "MX" || d.pais === "US")
+            .map(d => ({
+              titulo: (d.titulo || "").trim(),
+              anio: parseInt(d.anio, 10) || 2005,
+              pais: (d.pais || "").trim(),
+              tipo: (d.tipo || "").trim(),
+              proveedor: (d.proveedor || "").trim()
+            }));
+          if (cleaned.length > 0) {
+            platformsLongData = cleaned;
+            callback();
+          }
+        }
+      });
+    }
+
+    function loadWideMoviesCSV(file, callback) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          const cleaned = results.data.map(d => ({
+            Película: (d["Película"] || d.titulo || "").trim(),
+            anio: parseInt(d.anio, 10) || 2005,
+            Calificación: parseFloat(d["Calificación"]) || 6.5,
+            Popularidad: parseFloat(d["Popularidad"]) || 5.0,
+            "Recaudación USD": parseFloat(d["Recaudación USD"]) || 50000000,
+            "Palabras Clave (Muestra)": (d["Palabras Clave (Muestra)"] || "").trim(),
+            genero_principal: (d["genero_principal"] || "Comedia").trim()
+          })).filter(d => d.Película !== "");
+
+          if (cleaned.length > 0) {
+            moviesWideData = cleaned;
+            callback();
+          }
+        }
+      });
+    }
+
+    // Listeners para los botones "Cargar CSV" de cada sección
+    document.getElementById("upload-csv-plataformas").addEventListener("change", (e) => {
+      if (e.target.files[0]) {
+        loadPlatformsCSV(e.target.files[0], () => {
+          populateMovieSelector();
+          renderD3Platforms();
+        });
+      }
+    });
+
+    document.getElementById("upload-csv-generos").addEventListener("change", (e) => {
+      if (e.target.files[0]) {
+        loadWideMoviesCSV(e.target.files[0], () => {
+          renderD3Genres();
+          renderD3Closing();
+        });
+      }
+    });
+
+    document.getElementById("upload-csv-p5").addEventListener("change", (e) => {
+      if (e.target.files[0]) {
+        loadWideMoviesCSV(e.target.files[0], () => {
+          if (window.updateP5Movies) window.updateP5Movies();
+        });
+      }
+    });
+
+    /* =========================================================
+       4. UTILIDADES DE TOOLTIP GLOBAL Y AGRUPACIÓN DE MODALIDADES
+       ========================================================= */
+    const tooltipEl = document.getElementById("global-tooltip");
+
+    function showTooltip(html, event) {
+      tooltipEl.innerHTML = html;
+      tooltipEl.style.opacity = "1";
+      moveTooltip(event);
+    }
+
+    function moveTooltip(event) {
+      const x = Math.min(window.innerWidth - 310, event.clientX + 14);
+      const y = Math.min(window.innerHeight - 160, event.clientY + 14);
+      tooltipEl.style.left = Math.max(10, x) + "px";
+      tooltipEl.style.top = Math.max(10, y) + "px";
+    }
+
+    function hideTooltip() {
+      tooltipEl.style.opacity = "0";
+    }
+
+    // Agrupa las 5 modalidades originales en 3 categorías limpias
+    function groupModality(tipoRaw) {
+      const t = (tipoRaw || "").toLowerCase();
+      if (t.includes("suscrip")) return "Suscripción";
+      if (t.includes("gratis")) return "Gratis";
+      return "Renta / Compra";
+    }
+
+    function formatUSD(val) {
+      if (val >= 1e9) return "$" + (val / 1e9).toFixed(2) + "B";
+      if (val >= 1e6) return "$" + (val / 1e6).toFixed(1) + "M";
+      return "$" + val.toLocaleString();
+    }
+
+    /* =========================================================
+       5. PIEZA 1B (D3.JS): PLATAFORMAS Y MODALIDADES (MX Y US)
+       ========================================================= */
+    let selectedCountry = "ALL";
+    let selectedMoviePlat = "ALL";
+    let platHighlightMode = "ALL";
+
+    function populateMovieSelector() {
+      const sel = document.getElementById("movie-filter-plat");
+      const titles = Array.from(new Set(platformsLongData.map(d => d.titulo))).sort();
+      sel.innerHTML = `<option value="ALL">🎬 Todas las películas (${titles.length})</option>`;
+      titles.forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t;
+        sel.appendChild(opt);
+      });
+    }
+
+    function renderD3Platforms() {
+      const container = document.getElementById("d3-plataformas-container");
+      container.innerHTML = "";
+
+      // Filtrar por MX y US, país seleccionado y película seleccionada
+      let filtered = platformsLongData.filter(d => d.pais === "MX" || d.pais === "US");
+      if (selectedCountry !== "ALL") {
+        filtered = filtered.filter(d => d.pais === selectedCountry);
+      }
+      if (selectedMoviePlat !== "ALL") {
+        filtered = filtered.filter(d => d.titulo === selectedMoviePlat);
+      }
+
+      document.getElementById("plat-record-count").textContent = `${filtered.length} registros (${selectedCountry === "ALL" ? "MX + US" : selectedCountry})`;
+
+      // Agrupar por proveedor y modalidad agrupada
+      const groups = ["Suscripción", "Renta / Compra", "Gratis"];
+      const providerMap = new Map();
+
+      filtered.forEach(d => {
+        const mod = groupModality(d.tipo);
+        if (!providerMap.has(d.proveedor)) {
+          providerMap.set(d.proveedor, {
+            proveedor: d.proveedor,
+            "Suscripción": 0,
+            "Renta / Compra": 0,
+            "Gratis": 0,
+            total: 0,
+            movies: new Set()
+          });
+        }
+        const entry = providerMap.get(d.proveedor);
+        entry[mod] += 1;
+        entry.total += 1;
+        entry.movies.add(d.titulo);
+      });
+
+      const data = Array.from(providerMap.values())
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 10);
+
+      if (data.length === 0) {
+        container.innerHTML = `<p class="text-sm text-gray-500 py-12 text-center">No hay registros disponibles para esta combinación.</p>`;
+        return;
+      }
+
+      const width = container.clientWidth || 580;
+      const height = 360;
+      const margin = { top: 15, right: 30, bottom: 35, left: 145 };
+
+      const svg = d3.select(container)
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .on("mouseleave", hideTooltip);
+
+      const x = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d.total) * 1.12])
+        .range([margin.left, width - margin.right]);
+
+      const y = d3.scaleBand()
+        .domain(data.map(d => d.proveedor))
+        .range([margin.top, height - margin.bottom])
+        .padding(0.28);
+
+      const colorScale = d3.scaleOrdinal()
+        .domain(groups)
+        .range(["#E83E8C", "#9B5DE5", "#F5B700"]);
+
+      const stack = d3.stack().keys(groups);
+      const series = stack(data);
+
+      // Eje X
+      svg.append("g")
+        .attr("transform", `translate(0,${height - margin.bottom})`)
+        .call(d3.axisBottom(x).ticks(5))
+        .selectAll("text")
+        .style("font-size", "11px")
+        .style("fill", "#6B7280");
+
+      // Eje Y
+      svg.append("g")
+        .attr("transform", `translate(${margin.left},0)`)
+        .call(d3.axisLeft(y))
+        .selectAll("text")
+        .style("font-size", "11.5px")
+        .style("font-weight", "600")
+        .style("fill", "#1E1624");
+
+      // Barras apiladas
+      const layer = svg.selectAll(".layer")
+        .data(series)
+        .enter()
+        .append("g")
+        .attr("fill", d => colorScale(d.key))
+        .style("opacity", d => {
+          if (platHighlightMode === "SUSCRIPCION" && d.key !== "Suscripción") return 0.25;
+          return 1;
+        });
+
+      layer.selectAll("rect")
+        .data(d => d)
+        .enter()
+        .append("rect")
+        .attr("y", d => y(d.data.proveedor))
+        .attr("x", d => x(d[0]))
+        .attr("height", y.bandwidth())
+        .attr("width", d => Math.max(0, x(d[1]) - x(d[0])))
+        .attr("rx", 4)
+        .style("cursor", "pointer")
+        .on("mousemove", function(event, d) {
+          const row = d.data;
+          showTooltip(`
+            <div class="font-bold text-pink-300 text-sm mb-1">${row.proveedor}</div>
+            <div>🎬 Películas únicas: <strong>${row.movies.size}</strong></div>
+            <div class="mt-1 space-y-0.5 text-xs">
+              <div>• Suscripción: <strong>${row["Suscripción"]}</strong></div>
+              <div>• Renta / Compra: <strong>${row["Renta / Compra"]}</strong></div>
+              <div>• Gratis: <strong>${row["Gratis"]}</strong></div>
+            </div>
+          `, event);
+        })
+        .on("mouseleave", hideTooltip);
+
+      // Etiquetas de total al final de cada barra
+      svg.selectAll(".total-label")
+        .data(data)
+        .enter()
+        .append("text")
+        .attr("x", d => x(d.total) + 6)
+        .attr("y", d => y(d.proveedor) + y.bandwidth() / 2 + 4)
+        .text(d => d.total)
+        .style("font-size", "11px")
+        .style("font-weight", "700")
+        .style("fill", "#1E1624");
+    }
+
+    // Eventos de filtros de la Pieza 1
+    document.querySelectorAll("#country-filter-group .filter-pill").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#country-filter-group .filter-pill").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        selectedCountry = btn.dataset.country;
+        renderD3Platforms();
+      });
+    });
+
+    document.getElementById("movie-filter-plat").addEventListener("change", (e) => {
+      selectedMoviePlat = e.target.value;
+      renderD3Platforms();
+    });
+
+    /* =========================================================
+       6. PIEZA 3 (D3.JS): GÉNERO PRINCIPAL Y PALABRAS CLAVE
+       ========================================================= */
+    let selectedGenreFilter = "ALL";
+    let highlightExceptions = false;
+
+    function renderD3Genres() {
+      const container = document.getElementById("d3-generos-container");
+      container.innerHTML = "";
+
+      let data = [...moviesWideData];
+      if (selectedGenreFilter !== "ALL") {
+        data = data.filter(d => d.genero_principal === selectedGenreFilter);
+      }
+      data.sort((a, b) => b["Recaudación USD"] - a["Recaudación USD"]);
+      const displayData = data.slice(0, 12);
+
+      const width = container.clientWidth || 580;
+      const height = 340;
+      const margin = { top: 12, right: 65, bottom: 32, left: 175 };
+
+      const svg = d3.select(container)
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .on("mouseleave", hideTooltip);
+
+      const x = d3.scaleLinear()
+        .domain([0, d3.max(displayData, d => d["Recaudación USD"]) * 1.1])
+        .range([margin.left, width - margin.right]);
+
+      const y = d3.scaleBand()
+        .domain(displayData.map(d => d.Película))
+        .range([margin.top, height - margin.bottom])
+        .padding(0.25);
+
+      const genreColors = {
+        "Comedia": "#E83E8C",
+        "Drama": "#4A154B",
+        "Fantasía": "#00BBF9",
+        "Romance": "#FF8FA3",
+        "Familia": "#F5B700"
+      };
+
+      svg.append("g")
+        .attr("transform", `translate(0,${height - margin.bottom})`)
+        .call(d3.axisBottom(x).ticks(4).tickFormat(d => "$" + (d / 1e6).toFixed(0) + "M"))
+        .selectAll("text")
+        .style("font-size", "10.5px")
+        .style("fill", "#6B7280");
+
+      svg.append("g")
+        .attr("transform", `translate(${margin.left},0)`)
+        .call(d3.axisLeft(y))
+        .selectAll("text")
+        .style("font-size", "11px")
+        .style("font-weight", "600")
+        .style("fill", "#1E1624");
+
+      svg.selectAll("rect")
+        .data(displayData)
+        .enter()
+        .append("rect")
+        .attr("y", d => y(d.Película))
+        .attr("x", margin.left)
+        .attr("height", y.bandwidth())
+        .attr("width", d => Math.max(4, x(d["Recaudación USD"]) - margin.left))
+        .attr("rx", 6)
+        .attr("fill", d => genreColors[d.genero_principal] || "#E83E8C")
+        .style("opacity", d => {
+          if (highlightExceptions && d.genero_principal === "Comedia") return 0.25;
+          return 1;
+        })
+        .style("cursor", "pointer")
+        .on("mousemove", function(event, d) {
+          updateKeywordsInspector(d);
+          showTooltip(`
+            <div class="font-bold text-pink-300 text-sm">${d.Película}</div>
+            <div class="mt-1">🎭 Género principal: <strong>${d.genero_principal}</strong></div>
+            <div>💰 Taquilla: <strong>${formatUSD(d["Recaudación USD"])}</strong></div>
+            <div>⭐ Calificación: <strong>${d.Calificación.toFixed(2)}</strong></div>
+          `, event);
+        })
+        .on("click", function(event, d) {
+          updateKeywordsInspector(d);
+        })
+        .on("mouseleave", hideTooltip);
+
+      svg.selectAll(".val-lbl")
+        .data(displayData)
+        .enter()
+        .append("text")
+        .attr("x", d => x(d["Recaudación USD"]) + 6)
+        .attr("y", d => y(d.Película) + y.bandwidth() / 2 + 4)
+        .text(d => formatUSD(d["Recaudación USD"]))
+        .style("font-size", "10.5px")
+        .style("font-weight", "700")
+        .style("fill", "#1E1624");
+    }
+
+    function updateKeywordsInspector(movie) {
+      document.getElementById("kw-movie-title").textContent = `🎬 ${movie.Película}`;
+      document.getElementById("kw-movie-genre").textContent = `Género: ${movie.genero_principal}`;
+      document.getElementById("kw-movie-tags").textContent = `Palabras clave temáticas: ${movie["Palabras Clave (Muestra)"] || "Sin palabras clave registradas"}`;
+    }
+
+    document.querySelectorAll("#genre-filter-group .filter-pill").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#genre-filter-group .filter-pill").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        selectedGenreFilter = btn.dataset.genre;
+        highlightExceptions = false;
+        renderD3Genres();
+      });
+    });
+
+    /* =========================================================
+       7. PIEZA 4 (P5.JS): COLECCIÓN INTERACTIVA DE CDs Y2K
+       ========================================================= */
+    let p5CurrentMode = "timeline";
+
+    const p5Sketch = (p) => {
+      let discs = [];
+      let hoveredDisc = null;
+
+      const genrePalette = {
+        "Comedia": "#E83E8C",
+        "Drama": "#4A154B",
+        "Fantasía": "#00BBF9",
+        "Romance": "#FF8FA3",
+        "Familia": "#F5B700"
+      };
+
+      function buildDiscs() {
+        const w = p.width;
+        const h = p.height;
+        const years = Array.from(new Set(moviesWideData.map(m => m.anio || 2005))).sort();
+        const yearCounts = {};
+
+        discs = moviesWideData.map((m, i) => {
+          const yr = m.anio || 2005;
+          yearCounts[yr] = (yearCounts[yr] || 0) + 1;
+          const stackIdx = yearCounts[yr] - 1;
+
+          // Posición Modo 1: Timeline por año
+          const yrIndex = Math.max(0, years.indexOf(yr));
+          const colW = (w - 80) / Math.max(1, years.length);
+          const tx = 50 + yrIndex * colW + colW * 0.5;
+          const ty = h - 65 - stackIdx * 48;
+
+          // Posición Modo 2: Taquilla vs Calificación
+          const boxNorm = Math.min(1, m["Recaudación USD"] / 620000000);
+          const ratNorm = Math.max(0, Math.min(1, (m.Calificación - 6.0) / 1.3));
+          const bx = 65 + boxNorm * (w - 130);
+          const by = h - 55 - ratNorm * (h - 110);
+
+          // Posición Modo 3: Constelación libre
+          const angle = (i / moviesWideData.length) * p.TWO_PI;
+          const rad = Math.min(w, h) * 0.33;
+          const ox = w / 2 + Math.cos(angle) * rad;
+          const oy = h / 2 + Math.sin(angle) * rad;
+
+          const baseRadius = p.map(m["Recaudación USD"], 20000000, 610000000, 18, 42, true);
+
+          return {
+            movie: m,
+            x: tx,
+            y: ty,
+            targetX: tx,
+            targetY: ty,
+            timelinePos: { x: tx, y: ty },
+            boxPos: { x: bx, y: by },
+            orbitPos: { x: ox, y: oy },
+            r: baseRadius,
+            spin: p.random(p.TWO_PI),
+            color: genrePalette[m.genero_principal] || "#E83E8C"
+          };
+        });
+      }
+
+      window.updateP5Movies = buildDiscs;
+
+      p.setup = () => {
+        const container = document.getElementById("p5-container");
+        const canvas = p.createCanvas(container.clientWidth || 580, 390);
+        canvas.parent("p5-container");
+        buildDiscs();
+
+        // Ocultar tooltip al salir del canvas
+        canvas.mouseOut(() => {
+          hoveredDisc = null;
+          hideTooltip();
+        });
+      };
+
+      p.windowResized = () => {
+        const container = document.getElementById("p5-container");
+        if (container) {
+          p.resizeCanvas(container.clientWidth || 580, 390);
+          buildDiscs();
+        }
+      };
+
+      p.draw = () => {
+        p.background("#FFF8F6");
+
+        // Guías visuales según el modo activo
+        p.stroke("#F3D9E5");
+        p.strokeWeight(1);
+        if (p5CurrentMode === "timeline") {
+          const years = Array.from(new Set(moviesWideData.map(m => m.anio || 2005))).sort();
+          const colW = (p.width - 80) / Math.max(1, years.length);
+          p.fill("#6B7280");
+          p.noStroke();
+          p.textAlign(p.CENTER);
+          p.textSize(10);
+          years.forEach((yr, idx) => {
+            const x = 50 + idx * colW + colW * 0.5;
+            p.text(yr, x, p.height - 16);
+          });
+        } else if (p5CurrentMode === "boxoffice") {
+          p.line(50, p.height - 40, p.width - 30, p.height - 40);
+          p.line(50, 25, 50, p.height - 40);
+          p.noStroke();
+          p.fill("#6B7280");
+          p.textSize(10);
+          p.textAlign(p.RIGHT);
+          p.text("Mayor Recaudación USD →", p.width - 30, p.height - 22);
+          p.textAlign(p.LEFT);
+          p.text("↑ Mayor Calificación (TMDB)", 56, 30);
+        }
+
+        hoveredDisc = null;
+
+        discs.forEach((d, idx) => {
+          if (p5CurrentMode === "timeline") {
+            d.targetX = d.timelinePos.x;
+            d.targetY = d.timelinePos.y;
+          } else if (p5CurrentMode === "boxoffice") {
+            d.targetX = d.boxPos.x;
+            d.targetY = d.boxPos.y;
+          } else {
+            const t = p.frameCount * 0.004 + (idx / discs.length) * p.TWO_PI;
+            const rad = Math.min(p.width, p.height) * 0.33 + Math.sin(idx * 1.7) * 22;
+            d.targetX = p.width / 2 + Math.cos(t) * rad;
+            d.targetY = p.height / 2 + Math.sin(t) * rad;
+          }
+
+          d.x = p.lerp(d.x, d.targetX, 0.09);
+          d.y = p.lerp(d.y, d.targetY, 0.09);
+
+          const distMouse = p.dist(p.mouseX, p.mouseY, d.x, d.y);
+          const isHover = distMouse < d.r;
+          if (isHover) {
+            hoveredDisc = d;
+            d.spin += 0.08;
+          } else {
+            d.spin += 0.008;
+          }
+
+          // Dibujar disco CD estilizado
+          p.push();
+          p.translate(d.x, d.y);
+          p.rotate(d.spin);
+
+          // Aro exterior coloreado por género
+          p.stroke(isHover ? "#1E1624" : "#FFFFFF");
+          p.strokeWeight(isHover ? 2.5 : 1.5);
+          p.fill(d.color);
+          p.circle(0, 0, d.r * 2);
+
+          // Brillo holográfico del CD
+          p.noStroke();
+          p.fill(255, 255, 255, 75);
+          p.arc(0, 0, d.r * 1.85, d.r * 1.85, -0.5, 0.6);
+          p.arc(0, 0, d.r * 1.85, d.r * 1.85, p.PI - 0.5, p.PI + 0.6);
+
+          // Centro transparente del CD
+          p.fill("#FFF8F6");
+          p.stroke("#E5C6D6");
+          p.strokeWeight(1);
+          p.circle(0, 0, d.r * 0.52);
+          p.pop();
+        });
+
+        // Mostrar tooltip HTML flotante si hay hover sobre un CD
+        if (hoveredDisc && p.mouseX >= 0 && p.mouseX <= p.width && p.mouseY >= 0 && p.mouseY <= p.height) {
+          const m = hoveredDisc.movie;
+          const avail = platformsLongData.filter(r => r.titulo === m.Película && groupModality(r.tipo) === "Suscripción");
+          const subsList = Array.from(new Set(avail.map(a => `${a.proveedor} (${a.pais})`))).slice(0, 3);
+          const canvasRect = document.getElementById("p5-container").getBoundingClientRect();
+
+          showTooltip(`
+            <div class="font-bold text-pink-300 text-sm">💿 ${m.Película} (${m.anio || "2000s"})</div>
+            <div class="mt-1 space-y-0.5 text-xs">
+              <div>🎭 Género: <strong>${m.genero_principal}</strong></div>
+              <div>💰 Taquilla: <strong>${formatUSD(m["Recaudación USD"])}</strong></div>
+              <div>⭐ Calificación: <strong>${m.Calificación.toFixed(2)}</strong> · Pop: <strong>${m.Popularidad}</strong></div>
+              <div class="text-amber-300 pt-1">📺 Suscripción: ${subsList.length > 0 ? subsList.join(", ") : "Solo Renta/Compra"}</div>
+            </div>
+          `, {
+            clientX: canvasRect.left + p.mouseX,
+            clientY: canvasRect.top + p.mouseY
+          });
+        }
+      };
+    };
+
+    new p5(p5Sketch);
+
+    document.querySelectorAll("#p5-mode-group .filter-pill").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#p5-mode-group .filter-pill").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        p5CurrentMode = btn.dataset.mode;
+      });
+    });
+
+    /* =========================================================
+       8. PIEZA 5 (D3.JS): CIERRE RENTABILIDAD VS. POPULARIDAD
+       ========================================================= */
+    function renderD3Closing() {
+      const container = document.getElementById("d3-cierre-container");
+      container.innerHTML = "";
+
+      const top6 = [...moviesWideData]
+        .sort((a, b) => b["Recaudación USD"] - a["Recaudación USD"])
+        .slice(0, 6);
+
+      const width = container.clientWidth || 700;
+      const height = 240;
+      const margin = { top: 15, right: 80, bottom: 28, left: 195 };
+
+      const svg = d3.select(container)
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .on("mouseleave", hideTooltip);
+
+      const x = d3.scaleLinear()
+        .domain([0, d3.max(top6, d => d["Recaudación USD"]) * 1.1])
+        .range([margin.left, width - margin.right]);
+
+      const y = d3.scaleBand()
+        .domain(top6.map(d => d.Película))
+        .range([margin.top, height - margin.bottom])
+        .padding(0.28);
+
+      svg.append("g")
+        .attr("transform", `translate(0,${height - margin.bottom})`)
+        .call(d3.axisBottom(x).ticks(4).tickFormat(d => "$" + (d / 1e6).toFixed(0) + "M"))
+        .selectAll("text")
+        .style("font-size", "10.5px");
+
+      svg.append("g")
+        .attr("transform", `translate(${margin.left},0)`)
+        .call(d3.axisLeft(y))
+        .selectAll("text")
+        .style("font-size", "11.5px")
+        .style("font-weight", "600");
+
+      svg.selectAll("rect")
+        .data(top6)
+        .enter()
+        .append("rect")
+        .attr("y", d => y(d.Película))
+        .attr("x", margin.left)
+        .attr("height", y.bandwidth())
+        .attr("width", d => Math.max(4, x(d["Recaudación USD"]) - margin.left))
+        .attr("rx", 6)
+        .attr("fill", (d, i) => i === 0 ? "#E83E8C" : "#9B5DE5")
+        .style("cursor", "pointer")
+        .on("mousemove", function(event, d) {
+          showTooltip(`
+            <div class="font-bold text-pink-300 text-sm">${d.Película}</div>
+            <div>💰 Recaudación: <strong>${formatUSD(d["Recaudación USD"])}</strong></div>
+            <div>🔥 Popularidad: <strong>${d.Popularidad}</strong></div>
+            <div>⭐ Calificación: <strong>${d.Calificación.toFixed(2)}</strong></div>
+          `, event);
+        })
+        .on("mouseleave", hideTooltip);
+
+      svg.selectAll(".end-label")
+        .data(top6)
+        .enter()
+        .append("text")
+        .attr("x", d => x(d["Recaudación USD"]) + 6)
+        .attr("y", d => y(d.Película) + y.bandwidth() / 2 + 4)
+        .text(d => `${formatUSD(d["Recaudación USD"])} · Pop ${d.Popularidad}`)
+        .style("font-size", "10.5px")
+        .style("font-weight", "700")
+        .style("fill", "#1E1624");
+    }
+
+    /* =========================================================
+       9. CONFIGURACIÓN DE SCROLLAMA Y BARRA DE PROGRESO
+       ========================================================= */
+    function initScrollama() {
+      const scroller = scrollama();
+
+      scroller
+        .setup({
+          step: ".step-card",
+          offset: 0.58,
+          debug: false
+        })
+        .onStepEnter((response) => {
+          const el = response.element;
+          const parentSection = el.closest("section");
+
+          // Activar tarjeta actual dentro de su sección
+          if (parentSection) {
+            parentSection.querySelectorAll(".step-card").forEach(c => c.classList.remove("is-active"));
+          }
+          el.classList.add("is-active");
+
+          const stepNum = parseInt(el.dataset.step, 10);
+
+          // Reacciones por sección
+          if (parentSection && parentSection.id === "sec-plataformas") {
+            if (stepNum === 0) {
+              platHighlightMode = "ALL";
+              selectedCountry = "ALL";
+            } else if (stepNum === 1) {
+              platHighlightMode = "SUSCRIPCION";
+            } else if (stepNum === 2) {
+              platHighlightMode = "ALL";
+              selectedCountry = "MX";
+            }
+            document.querySelectorAll("#country-filter-group .filter-pill").forEach(b => {
+              b.classList.toggle("active", b.dataset.country === selectedCountry);
+            });
+            renderD3Platforms();
+          }
+
+          if (parentSection && parentSection.id === "sec-generos") {
+            highlightExceptions = (stepNum === 1);
+            renderD3Genres();
+          }
+
+          if (parentSection && parentSection.id === "sec-constelacion") {
+            const modes = ["timeline", "boxoffice", "orbit"];
+            p5CurrentMode = modes[stepNum] || "timeline";
+            document.querySelectorAll("#p5-mode-group .filter-pill").forEach(b => {
+              b.classList.toggle("active", b.dataset.mode === p5CurrentMode);
+            });
+          }
+        });
+
+      window.addEventListener("resize", () => {
+        scroller.resize();
+        renderD3Platforms();
+        renderD3Genres();
+        renderD3Closing();
+      });
+    }
+
+    // Barra de progreso superior
+    window.addEventListener("scroll", () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+      document.getElementById("scroll-progress").style.width = progress + "%";
+    });
+
+    // Inicialización al cargar la página
+    window.addEventListener("DOMContentLoaded", () => {
+      populateMovieSelector();
+      renderD3Platforms();
+      renderD3Genres();
+      renderD3Closing();
+      initScrollama();
+    });
+  </script>
+</body>
+</html>
